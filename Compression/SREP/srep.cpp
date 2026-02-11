@@ -9,7 +9,16 @@ char *program_homepage    = "http://freearc.org/research/SREP39.aspx";
 #include <set>
 #include <stack>
 #include <vector>
-#include <malloc.h>
+// 修改点：跨平台内存头文件处理
+#ifdef _WIN32
+  #include <malloc.h>
+#else
+  #include <stdlib.h>
+  // Linux/Unix 下 alloca 通常在 alloca.h 中，或者由 stdlib.h 提供
+  #if defined(__linux__) || defined(__sun) || defined(__CYGWIN__)
+    #include <alloca.h>
+  #endif
+#endif
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -55,7 +64,7 @@ static struct {Offset max_offset, find_match, find_match_memaccess, check_hashar
 void error (int ExitCode, char *ErrmsgFormat...);   // Exit on error
 
 
-#if defined(_M_X64) || defined(_M_AMD64) || defined(__x86_64__)
+#if defined(_M_X64) || defined(_M_AMD64) || defined(__x86_64__) || defined(__aarch64__)
 #define _32_or_64(_32,_64) (_64)
 #define _32_only(_32)      (void(0))
 typedef size_t NUMBER;               // best choice for loop index variables on most 64-bit compilers

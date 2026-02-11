@@ -685,7 +685,7 @@ void EndCompressionThreadPriority (int old_priority)
 #include <sys/resource.h>
 #include <stdio.h>
 #include <string.h>
-
+#include <sys/sysctl.h>  // <--- 新增这一行，用于支持 FreeBSD/macOS 等
 
 // Function to read a specific field from /proc/meminfo
 long long get_mem_info(const char* field) {
@@ -724,6 +724,16 @@ uint64 GetAvailablePhysicalMemory (void)
     }
 #if defined(_SC_AVPHYS_PAGES)
   return uint64(sysconf(_SC_AVPHYS_PAGES)) * sysconf(_SC_PAGE_SIZE);
+
+#elif defined(__NetBSD__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || defined(__minix) || defined(__APPLE__)
+    unsigned long page_count = 0;
+    size_t page_count_size = sizeof(page_count);
+    // 注意：原版代码此处可能有笔误 (传了 &page_count 而非 &page_count_size)，这里建议修正为 &page_count_size
+    if (sysctlbyname("hw.availpages", &page_count, &page_count_size, NULL, 0) == 0) {
+        return (uint64)page_count * sysconf(_SC_PAGE_SIZE);
+    } else {
+        return GetPhysicalMemory(); // 如果获取失败，回退到总内存
+    }
 #else
   return GetPhysicalMemory(); // Fallback to total memory if available is not found
 #endif

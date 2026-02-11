@@ -14,8 +14,8 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-
-#if defined(_M_X64) || defined(_M_AMD64) || defined(__x86_64__)
+/* 加入 arm64支持 */
+#if defined(_M_X64) || defined(_M_AMD64) || defined(__x86_64__) || defined(__aarch64__)
 #define FREEARC_64BIT
 #endif
 
@@ -89,7 +89,7 @@ typedef unsigned long        ulong;
 typedef unsigned int         uint,   UINT;
 typedef unsigned short int   ushort;
 typedef unsigned char        uchar;
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__clang__) || (defined(_MSC_VER) && _MSC_VER >= 1600)
 #include <stdint.h>
 typedef          uint64_t    uint64;
 typedef          uint32_t    uint32;
