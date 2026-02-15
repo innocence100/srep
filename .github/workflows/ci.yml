@@ -18,9 +18,9 @@ jobs:
         mkdir build
         cd build
         if [[ "${{ runner.os }}" == "Windows" ]]; then
-          cmake -G "MinGW Makefiles" .
+          cmake -G "MinGW Makefiles" ..
         else
-          cmake .
+          cmake ..
         fi
         ls
         make
