@@ -24,4 +24,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: executable-${{ matrix.os }}
-        path: bin/srep*  # 替换为你可执行文件的路径
+        path: ./  # 替换为你可执行文件的路径
