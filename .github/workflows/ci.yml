@@ -16,6 +16,7 @@ jobs:
     - name: Build srep
       run: |
         mkdir build
+        cd build
         cmake ..
         make
     
