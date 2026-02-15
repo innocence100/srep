@@ -1,20 +1,26 @@
-name: CI
+name: CI Cmake
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+        matrix:
+          os: [ubuntu-latest, windows-latest]  # 支持的操作系统列表
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Build srep
-      run: ./Makefile
-
-    - name: Test srep
-      run: bin/srep
+      run: |
+        mkdir build
+        cmake ..
+        make
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: executable-${{ matrix.os }}
+        path: bin/srep*  # 替换为你可执行文件的路径
