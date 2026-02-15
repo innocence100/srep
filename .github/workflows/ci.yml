@@ -84,7 +84,6 @@ jobs:
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: ${{ steps.tag.outputs.name }}
-          body: "Automated release from CI run ${{ github.run_number }}."
           draft: false
           prerelease: ${{ steps.tag.outputs.is_tag == 'false' }}
           files: |
