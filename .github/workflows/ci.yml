@@ -1,20 +1,93 @@
-name: CI
+name: CI Cmake
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag'
+        required: false
+        default: ''
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+        matrix:
+          os: [ubuntu-latest, windows-latest]  # 支持的操作系统列表
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Build srep
-      run: ./Makefile
+      shell: bash
+      run: |
+        mkdir build
+        cd build
+        if [[ "${{ runner.os }}" == "Windows" ]]; then
+          cmake -G "MinGW Makefiles" ..
+        else
+          cmake ..
+        fi
+        make
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: executable-${{ matrix.os }}
+        path: build/srep*  # 替换为你可执行文件的路径
 
-    - name: Test srep
-      run: bin/srep
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine release tag / name
+        id: tag
+        run: |
+          # Priority:
+          # 1) If this run was triggered by a tag push, use that tag.
+          # 2) Else if workflow_dispatch input.tag provided, use that.
+          # 3) Else fall back to ci-<run> pre-release name.
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+            IS_TAG=true
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ github.event.inputs.tag }}" ]]; then
+            TAG_NAME="${{ github.event.inputs.tag }}"
+            IS_TAG=false
+          else
+            TAG_NAME="ci-${GITHUB_RUN_NUMBER}"
+            IS_TAG=false
+          fi
+          echo "tag=${TAG_NAME}" >> $GITHUB_OUTPUT
+          echo "is_tag=${IS_TAG}" >> $GITHUB_OUTPUT
+          echo "name=Release ${TAG_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Download linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: executable-ubuntu-latest
+          path: artifacts/ubuntu
+        continue-on-error: true
+
+      - name: Download windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: executable-windows-latest
+          path: artifacts/windows
+        continue-on-error: true
+
+      - name: List downloaded artifacts
+        run: |
+          ls -al artifacts || true
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.name }}
+          draft: false
+          prerelease: ${{ steps.tag.outputs.is_tag == 'false' }}
+          files: |
+            artifacts/ubuntu/**
+            artifacts/windows/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
