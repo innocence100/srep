@@ -23,7 +23,6 @@ jobs:
         else
           cmake ..
         fi
-        ls
         make
     
     - name: Upload artifacts
@@ -31,3 +30,64 @@ jobs:
       with:
         name: executable-${{ matrix.os }}
         path: build/srep*  # 替换为你可执行文件的路径
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine release tag / name
+        id: tag
+        run: |
+          # If workflow was triggered by a tag push, use that tag; otherwise create a pseudo-tag
+          if [ -n "${GITHUB_REF##*/}" ] && [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+            echo "tag=${TAG_NAME}" >> $GITHUB_OUTPUT
+            echo "is_tag=true" >> $GITHUB_OUTPUT
+          else
+            # Use run number to create a unique pre-release name
+            TAG_NAME="ci-${GITHUB_RUN_NUMBER}"
+            echo "tag=${TAG_NAME}" >> $GITHUB_OUTPUT
+            echo "is_tag=false" >> $GITHUB_OUTPUT
+          fi
+          # Human-friendly release name
+          echo "name=Release ${TAG_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Download linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: srep-ubuntu-latest
+          path: artifacts/ubuntu
+        continue-on-error: true
+
+      - name: Download windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: srep-windows-latest
+          path: artifacts/windows
+        continue-on-error: true
+
+      - name: List downloaded artifacts
+        run: |
+          ls -al artifacts || true
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.name }}
+          body: "Automated release from CI run ${{ github.run_number }}."
+          draft: false
+          prerelease: ${{ steps.tag.outputs.is_tag == 'false' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts to Release
+        if: always()
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/ubuntu/**
+            artifacts/windows/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
