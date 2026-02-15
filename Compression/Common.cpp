@@ -966,7 +966,7 @@ double GetThreadCPUTime (void)
 #ifdef FREEARC_UNIX
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <sys/sysctl.h>  // <--- æ°å¢è¿ä¸è¡ï¼ç¨äºæ¯æ FreeBSD/macOS ç­
+­
 // Returns number of wall-clock seconds since some moment
 double GetGlobalTime (void)
 {
