@@ -2,7 +2,11 @@ name: CI Cmake
 
 on:
   workflow_dispatch:
-
+    inputs:
+      tag:
+        description: 'Release tag'
+        required: false
+        default: ''
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -38,18 +42,22 @@ jobs:
       - name: Determine release tag / name
         id: tag
         run: |
-          # If workflow was triggered by a tag push, use that tag; otherwise create a pseudo-tag
-          if [ -n "${GITHUB_REF##*/}" ] && [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+          # Priority:
+          # 1) If this run was triggered by a tag push, use that tag.
+          # 2) Else if workflow_dispatch input.tag provided, use that.
+          # 3) Else fall back to ci-<run> pre-release name.
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             TAG_NAME="${GITHUB_REF#refs/tags/}"
-            echo "tag=${TAG_NAME}" >> $GITHUB_OUTPUT
-            echo "is_tag=true" >> $GITHUB_OUTPUT
+            IS_TAG=true
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ github.event.inputs.tag }}" ]]; then
+            TAG_NAME="${{ github.event.inputs.tag }}"
+            IS_TAG=false
           else
-            # Use run number to create a unique pre-release name
             TAG_NAME="ci-${GITHUB_RUN_NUMBER}"
-            echo "tag=${TAG_NAME}" >> $GITHUB_OUTPUT
-            echo "is_tag=false" >> $GITHUB_OUTPUT
+            IS_TAG=false
           fi
-          # Human-friendly release name
+          echo "tag=${TAG_NAME}" >> $GITHUB_OUTPUT
+          echo "is_tag=${IS_TAG}" >> $GITHUB_OUTPUT
           echo "name=Release ${TAG_NAME}" >> $GITHUB_OUTPUT
 
       - name: Download linux artifact
