@@ -40,6 +40,7 @@ include_directories(
 # 操作系统宏定义
 if(WIN32)
     add_definitions(-DFREEARC_WIN)
+    add_compile_definitions(UNICODE _UNICODE) # 避免字符集问题
 elseif(UNIX)
     add_definitions(-DFREEARC_UNIX -D_FILE_OFFSET_BITS=64)
 endif()
