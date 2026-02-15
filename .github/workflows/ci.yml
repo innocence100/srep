@@ -63,14 +63,14 @@ jobs:
       - name: Download linux artifact
         uses: actions/download-artifact@v4
         with:
-          name: srep-ubuntu-latest
+          name: executable-ubuntu-latest
           path: artifacts/ubuntu
         continue-on-error: true
 
       - name: Download windows artifact
         uses: actions/download-artifact@v4
         with:
-          name: srep-windows-latest
+          name: executable-windows-latest
           path: artifacts/windows
         continue-on-error: true
 
@@ -87,13 +87,6 @@ jobs:
           body: "Automated release from CI run ${{ github.run_number }}."
           draft: false
           prerelease: ${{ steps.tag.outputs.is_tag == 'false' }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload artifacts to Release
-        if: always()
-        uses: softprops/action-gh-release@v1
-        with:
           files: |
             artifacts/ubuntu/**
             artifacts/windows/**
