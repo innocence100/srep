@@ -140,9 +140,9 @@ bool order_by_LZ_match_dest (const LZ_MATCH &left, const LZ_MATCH &right)
   }
 
 
-// Копирует данные из буфера в буфер, идя в порядке возрастания адресов
-// (это важно, поскольку буфера могут пересекаться и в этом случае нужно
-// размножить существующие данные)
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+// (пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ)
 void memcpy_lz_match (void* _dest, void* _src, unsigned len)
 {
   if (len) {
@@ -498,6 +498,28 @@ int main (int argc, char **argv)
   if (fin == NULL)  error (ERROR_IO, "Can't open %s for read", finame);
   set_binary_mode (fin);
 
+  FILE *ftempin = NULL;
+  char stdin_tempfile[256] = "";
+  if (cmdmode!=COMPRESSION && strequ(finame,"-"))
+  {
+#ifdef _WIN32
+    long pid = GetCurrentProcessId();
+#else
+    long pid = getpid();
+#endif
+    sprintf(stdin_tempfile, "srep-stdin-%ld.tmp", pid);
+    ftempin = fopen(stdin_tempfile, "w+b");
+    if (ftempin == NULL)
+      error (ERROR_IO, "Can't create temp file %s for stdin buffering", stdin_tempfile);
+    char copybuf[64*1024];
+    size_t n;
+    while ((n = fread(copybuf, 1, sizeof(copybuf), fin)) > 0)
+      fwrite(copybuf, 1, n, ftempin);
+    fflush(ftempin);
+    rewind(ftempin);
+    fin = ftempin;
+  }
+
   FILE *fout = strequ (foutname, "-")? stdout : fopen (foutname, "w+b");
   if (fout == NULL)  error (ERROR_IO, "Can't open %s for write", foutname);
   set_binary_mode (fout);
@@ -507,8 +529,8 @@ int main (int argc, char **argv)
 
   FILE *ftemp = NULL;
 
-  STAT header[MAX_HEADER_SIZE+MAX_HASH_SIZE];  zeroArray(header);   // header size depends on the *selected_hash properties
-  filesize  =  (strequ(finame,"-")? filesize : get_flen(fin));
+  STAT header[MAX_HEADER_SIZE+MAX_HASH_SIZE];  zeroArray(header);
+  filesize  =  (strequ(finame,"-") && !ftempin)? filesize : get_flen(fin);
   Offset origsize = 0,  compsize = 0,  ram = 0,  max_ram = 0;
   // Reduce default accel value for small L
   if (accel==9000)         accel        =  mymin (mymax(L/32,1), DEFAULT_ACCEL);  unsigned BITARR_ACCELERATOR = accel*8;
@@ -664,7 +686,7 @@ int main (int argc, char **argv)
           last_block = &block->next;
 
           if (ROUND_MATCHES)
-            compsize += stat_size / STATS_PER_MATCH(ROUND_MATCHES);   // Добавить размер одного слова STAT из-за того, что данные собираются с ROUND_MATCHES (по 12 байт), а кодироваться будут без него (по 16 байт)
+            compsize += stat_size / STATS_PER_MATCH(ROUND_MATCHES);   // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ STAT пїЅпїЅ-пїЅпїЅ пїЅпїЅпїЅпїЅ, пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ ROUND_MATCHES (пїЅпїЅ 12 пїЅпїЅпїЅпїЅ), пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ (пїЅпїЅ 16 пїЅпїЅпїЅпїЅ)
 
           if (INDEX_LZ)
             compsize += sizeof(STAT);   // accounting for the future write of statsize_buf[]
@@ -1170,6 +1192,8 @@ cleanup:
   if (tempfile && *tempfile)
     fclose(ftemp),
     remove(tempfile);
+  if (stdin_tempfile[0])
+    remove(stdin_tempfile);
   if (errcode)
   {
     // Delete output files on error
